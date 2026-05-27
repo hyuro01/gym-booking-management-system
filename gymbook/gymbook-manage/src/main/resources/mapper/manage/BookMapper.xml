@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gymbook.manage.mapper.BookMapper">
+    
+    <resultMap type="Book" id="BookResult">
+        <result property="id"    column="id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="venueId"    column="venue_id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="coachId"    column="coach_id"    />
+        <result property="status"    column="status"    />
+        <result property="bookTime"    column="book_time"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="nickName"    column="nick_name"    />
+        <result property="venueName"    column="venue_name"    />
+        <result property="courseName"    column="course_name"    />
+        <result property="coachName"    column="coach_name"    />
+    </resultMap>
+
+    <sql id="selectBookVo">
+        select id, user_id, venue_id, course_id, coach_id, status, book_time, create_time from book
+    </sql>
+
+    <select id="selectBookList" parameterType="Book" resultMap="BookResult">
+        select b.id, u1.nick_name, v.name as venue_name, c.name as course_name, u2.nick_name as coach_name, b.status, b.book_time
+        from book b
+        LEFT JOIN sys_user u1 ON b.user_id=u1.user_id
+        LEFT JOIN venue v ON b.venue_id=v.id
+        LEFT JOIN course c ON b.course_id=c.id
+        LEFT JOIN sys_user u2 ON b.coach_id=u2.user_id
+        <where>  
+            <if test="userId != null "> and b.user_id = #{userId}</if>
+            <if test="venueId != null "> and b.venue_id = #{venueId}</if>
+            <if test="courseId != null "> and b.course_id = #{courseId}</if>
+            <if test="coachId != null "> and b.coach_id = #{coachId}</if>
+            <if test="status != null "> and b.status = #{status}</if>
+            <if test="bookTime != null "> and DATE(b.book_time) = #{bookTime}</if>
+            <if test="nickName != null "> and u1.nick_name like concat('%', #{nickName}, '%')</if>
+            <if test="venueName != null "> and v.name like concat('%', #{venueName}, '%')</if>
+            <if test="courseName != null "> and c.name like concat('%', #{courseName}, '%')</if>
+            <if test="coachName != null "> and u2.nick_name like concat('%', #{coachName}, '%')</if>
+        </where>
+    </select>
+    
+    <select id="selectBookById" parameterType="Long" resultMap="BookResult">
+        <include refid="selectBookVo"/>
+        where id = #{id}
+    </select>
+
+    <!-- 查询用户一年中每天的预约次数 -->
+    <select id="bookTimeByMap" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM book
+        WHERE user_id = #{userId}
+        AND DATE(book_time) = #{date}
+    </select>
+
+    <!-- 各个教练在一段时间内被预约次数 -->
+    <select id="getCoachTop10" resultType="com.gymbook.manage.DTO.CoachCountDTO">
+        SELECT u.nick_name as name, COUNT(b.id) AS number
+        FROM sys_user_role ur
+        LEFT JOIN sys_user u ON ur.user_id=u.user_id
+        LEFT JOIN book b ON u.user_id=b.coach_id
+        AND b.status NOT IN (0, 2)
+        <if test="begin !=null" >
+            AND b.create_time &gt; #{begin}
+        </if>
+        <if test="end !=null" >
+            AND b.create_time &lt; #{end}
+        </if>
+        <where>
+            and ur.role_id=3
+        </where>
+        GROUP BY u.user_id
+        ORDER BY number DESC
+        LIMIT 0, 10;
+    </select>
+
+    <!-- 查出不同状态的不同预约数量 -->
+    <select id="getBookStatusCount" resultType="com.gymbook.manage.DTO.BookStatusCountDTO">
+        SELECT status,COUNT(*) AS number
+        FROM book
+        WHERE create_time BETWEEN #{begin} AND #{end}
+        GROUP BY status
+    </select>
+
+    <!--查出所有用户预约健身课程的数据-->
+    <select id="getUserBooking" parameterType="Book" resultMap="BookResult">
+        SELECT id, user_id, venue_id, course_id, coach_id, status, book_time, create_time
+        FROM  book
+        WHERE status IN (1,3) AND course_id IS NOT NULL
+    </select>
+
+    <!--获取已完成未评价的预约-->
+    <select id="getEndBook" resultMap="BookResult">
+        select b.id, u1.nick_name,b.venue_id, v.name as venue_name,b.course_id, c.name as course_name,b.coach_id, u2.nick_name as coach_name, b.status, b.book_time
+        from book b
+                 LEFT JOIN sys_user u1 ON b.user_id=u1.user_id
+                 LEFT JOIN venue v ON b.venue_id=v.id
+                 LEFT JOIN course c ON b.course_id=c.id
+                 LEFT JOIN sys_user u2 ON b.coach_id=u2.user_id
+        where b.user_id=#{userId}
+          and b.status in (3)
+          AND b.id NOT IN (SELECT book_id FROM book_feedback);
+    </select>
+
+    <!--教练每一天被预约次数-->
+    <select id="coachStudentByMap" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM book
+        WHERE coach_id = #{coachId}
+          AND DATE(book_time) = #{date}
+    </select>
+
+
+    <insert id="insertBook" parameterType="Book" useGeneratedKeys="true" keyProperty="id">
+        insert into book
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="venueId != null">venue_id,</if>
+            <if test="courseId != null">course_id,</if>
+            <if test="coachId != null">coach_id,</if>
+            <if test="status != null">status,</if>
+            <if test="bookTime != null">book_time,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="venueId != null">#{venueId},</if>
+            <if test="courseId != null">#{courseId},</if>
+            <if test="coachId != null">#{coachId},</if>
+            <if test="status != null">#{status},</if>
+            <if test="bookTime != null">#{bookTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBook" parameterType="Book">
+        update book
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="venueId != null">venue_id = #{venueId},</if>
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="coachId != null">coach_id = #{coachId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="bookTime != null">book_time = #{bookTime},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteBookById" parameterType="Long">
+        delete from book where id = #{id}
+    </delete>
+
+    <delete id="deleteBookByIds" parameterType="String">
+        delete from book where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

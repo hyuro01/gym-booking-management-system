@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gymbook.manage.mapper.FeedbackMapper">
+    
+    <resultMap type="Feedback" id="FeedbackResult">
+        <result property="id"    column="id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="coachId"    column="coach_id"    />
+        <result property="venueId"    column="venue_id"    />
+        <result property="rate"    column="rate"    />
+        <result property="remark"    column="remark"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="nickName"    column="nick_name"    />
+        <result property="courseName"    column="course_name"    />
+        <result property="coachName"    column="coach_name"    />
+        <result property="venueName"    column="venue_name"    />
+    </resultMap>
+
+    <sql id="selectFeedbackVo">
+        select id, user_id, course_id, coach_id, venue_id, rate, remark, create_time from feedback
+    </sql>
+
+    <select id="selectFeedbackList" parameterType="Feedback" resultMap="FeedbackResult">
+        SELECT f.id, u1.nick_name as nick_name, c.name as course_name, u2.nick_name as coach_name, v.name as venue_name, f.rate, f.remark, f.create_time
+        FROM feedback f
+        LEFT JOIN sys_user u1 ON f.user_id=u1.user_id
+        LEFT JOIN course c ON f.course_id=c.id
+        LEFT JOIN sys_user u2 ON f.coach_id=u2.user_id
+        LEFT JOIN venue v ON f.venue_id=v.id
+        <where>  
+            <if test="userId != null "> and f.user_id = #{userId}</if>
+            <if test="courseId != null "> and f.course_id = #{courseId}</if>
+            <if test="coachId != null "> and f.coach_id = #{coachId}</if>
+            <if test="venueId != null "> and f.venue_id = #{venueId}</if>
+            <if test="rate != null  and rate != ''"> and f.rate = #{rate}</if>
+            <if test="remark != null  and remark != ''"> and f.remark = #{remark}</if>
+            <if test="createTime != null "> and DATE(f.create_time) = #{createTime}</if>
+            <if test="nickName != null "> and u1.nick_name like concat('%', #{nickName}, '%')</if>
+            <if test="courseName != null "> and c.name like concat('%', #{courseName}, '%')</if>
+            <if test="coachName != null "> and u2.nick_name like concat('%', #{coachName}, '%')</if>
+            <if test="venueName != null "> and v.name like concat('%', #{venueName}, '%')</if>
+        </where>
+    </select>
+    
+    <select id="selectFeedbackById" parameterType="Long" resultMap="FeedbackResult">
+        <include refid="selectFeedbackVo"/>
+        where id = #{id}
+    </select>
+
+    <!--获取评分-->
+    <select id="getCoachRate" resultType="java.lang.Double">
+        SELECT AVG(rate) as rate FROM feedback where coach_id=#{coachId}
+    </select>
+    <select id="getAvgRate" resultType="java.lang.Double">
+        SELECT AVG(rate) as avgRate FROM feedback
+    </select>
+
+    <insert id="insertFeedback" parameterType="Feedback" useGeneratedKeys="true" keyProperty="id">
+        insert into feedback
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="courseId != null">course_id,</if>
+            <if test="coachId != null">coach_id,</if>
+            <if test="venueId != null">venue_id,</if>
+            <if test="rate != null and rate != ''">rate,</if>
+            <if test="remark != null">remark,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="courseId != null">#{courseId},</if>
+            <if test="coachId != null">#{coachId},</if>
+            <if test="venueId != null">#{venueId},</if>
+            <if test="rate != null and rate != ''">#{rate},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateFeedback" parameterType="Feedback">
+        update feedback
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="coachId != null">coach_id = #{coachId},</if>
+            <if test="venueId != null">venue_id = #{venueId},</if>
+            <if test="rate != null and rate != ''">rate = #{rate},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteFeedbackById" parameterType="Long">
+        delete from feedback where id = #{id}
+    </delete>
+
+    <delete id="deleteFeedbackByIds" parameterType="String">
+        delete from feedback where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

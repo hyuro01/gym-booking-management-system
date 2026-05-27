@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gymbook.manage.mapper.HealthMapper">
+    
+    <resultMap type="Health" id="HealthResult">
+        <result property="id"    column="id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="weight"    column="weight"    />
+        <result property="height"    column="height"    />
+        <result property="goal"    column="goal"    />
+        <result property="percent"    column="percent"    />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <sql id="selectHealthVo">
+        select id, user_id, weight, height, goal, percent, create_time from health
+    </sql>
+
+    <select id="selectHealthList" parameterType="Health" resultMap="HealthResult">
+        <include refid="selectHealthVo"/>
+        <where>  
+            <if test="userId != null "> and user_id = #{userId}</if>
+            <if test="weight != null "> and weight &lt;= #{weight}</if>
+            <if test="height != null "> and height = #{height}</if>
+            <if test="goal != null  and goal != ''"> and goal like concat('%', #{goal}, '%')</if>
+        </where>
+    </select>
+    
+    <select id="selectHealthById" parameterType="Long" resultMap="HealthResult">
+        <include refid="selectHealthVo"/>
+        where id = #{id}
+    </select>
+
+    <!--根据动态条件查询体重数据-->
+    <select id="weightByMap" resultType="java.lang.Double">
+        select weight
+        from health
+        <where>
+            <if test="date!= null">
+                and create_time = #{date}
+            </if>
+            <if test="userId!= null">
+                and user_id = #{userId}
+            </if>
+        </where>
+    </select>
+
+    <!--根据动态条件查询bmi数据-->
+    <select id="bmiByMap" resultType="java.lang.Double">
+        SELECT ROUND(weight/(height*height),2) bmi
+        FROM health
+        <where>
+            <if test="date!= null">
+                and create_time = #{date}
+            </if>
+            <if test="userId!= null">
+                and user_id = #{userId}
+            </if>
+        </where>
+    </select>
+
+
+    <insert id="insertHealth" parameterType="Health" useGeneratedKeys="true" keyProperty="id">
+        insert into health
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="weight != null">weight,</if>
+            <if test="height != null">height,</if>
+            <if test="goal != null">goal,</if>
+            <if test="percent != null">percent,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="weight != null">#{weight},</if>
+            <if test="height != null">#{height},</if>
+            <if test="goal != null">#{goal},</if>
+            <if test="percent != null">#{percent},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateHealth" parameterType="Health">
+        update health
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="weight != null">weight = #{weight},</if>
+            <if test="height != null">height = #{height},</if>
+            <if test="goal != null">goal = #{goal},</if>
+            <if test="percent != null">percent = #{percent},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteHealthById" parameterType="Long">
+        delete from health where id = #{id}
+    </delete>
+
+    <delete id="deleteHealthByIds" parameterType="String">
+        delete from health where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

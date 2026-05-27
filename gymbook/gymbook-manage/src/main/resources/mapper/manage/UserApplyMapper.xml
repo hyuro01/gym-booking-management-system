@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gymbook.manage.mapper.UserApplyMapper">
+    
+    <resultMap type="Book" id="BookResult">
+        <result property="id"    column="id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="venueId"    column="venue_id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="courseName"    column="course_name"    />
+        <result property="coachId"    column="coach_id"    />
+        <result property="status"    column="status"    />
+        <result property="bookTime"    column="book_time"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="coachName"    column="coach_name"    />
+        <result property="nickName" column="nick_name"/>
+        <association property="user" javaType="com.gymbook.manage.domain.User" columnPrefix="user">
+            <id property="userId" column="user_id"   />
+            <result property="nickName" column="nick_name"/>
+        </association>
+        <association property="venue" javaType="com.gymbook.manage.domain.Venue">
+            <id property="id" column="venue_id"   />
+            <result property="name" column="venue_name"/>
+        </association>
+        <association property="course" javaType="com.gymbook.manage.domain.Course">
+            <id property="id" column="course_id"   />
+            <result property="name" column="course_name"/>
+        </association>
+    </resultMap>
+
+    <sql id="selectBookVo">
+        select id, user_id, venue_id, course_id, coach_id, status, book_time, create_time from book
+    </sql>
+
+    <!--查询用户提交的申请-->
+    <select id="selectUserApplyList" parameterType="Book" resultMap="BookResult">
+        select b.id, u1.nick_name as nick_name, v.name as venue_name, u2.nick_name as coach_name, c.name as course_name, b.status, b.book_time
+        from book b
+        LEFT JOIN sys_user u1 ON b.user_id=u1.user_id
+        LEFT JOIN venue v ON b.venue_id=v.id
+        LEFT JOIN sys_user u2 ON b.coach_id=u2.user_id
+        LEFT JOIN course c ON b.course_id=c.id
+        <where>
+            and b.status=0 <!--只处理状态为待审核的用户预约-->
+            <if test="userId != null "> and b.user_id = #{userId}</if>
+            <if test="venueId != null "> and b.venue_id = #{venueId}</if>
+            <if test="courseId != null "> and b.course_id = #{courseId}</if>
+            <if test="coachId != null "> and b.coach_id = #{coachId}</if>
+            <if test="bookTime != null "> and DATE(b.book_time) = #{bookTime}</if>
+        </where>
+    </select>
+    
+    <select id="selectBookById" parameterType="Long" resultMap="BookResult">
+        <include refid="selectBookVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertBook" parameterType="Book" useGeneratedKeys="true" keyProperty="id">
+        insert into book
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="venueId != null">venue_id,</if>
+            <if test="courseId != null">course_id,</if>
+            <if test="coachId != null">coach_id,</if>
+            <if test="status != null">status,</if>
+            <if test="bookTime != null">book_time,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="venueId != null">#{venueId},</if>
+            <if test="courseId != null">#{courseId},</if>
+            <if test="coachId != null">#{coachId},</if>
+            <if test="status != null">#{status},</if>
+            <if test="bookTime != null">#{bookTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateBook" parameterType="Book">
+        update book
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="venueId != null">venue_id = #{venueId},</if>
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="coachId != null">coach_id = #{coachId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="bookTime != null">book_time = #{bookTime},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteBookById" parameterType="Long">
+        delete from book where id = #{id}
+    </delete>
+
+    <delete id="deleteBookByIds" parameterType="String">
+        delete from book where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

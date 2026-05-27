@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gymbook.manage.mapper.VenueMapper">
+    
+    <resultMap type="Venue" id="VenueResult">
+        <result property="id"    column="id"    />
+        <result property="name"    column="name"    />
+        <result property="capacity"    column="capacity"    />
+        <result property="openTime"    column="open_time"    />
+        <result property="closeTime"    column="close_time"    />
+        <result property="info"    column="info"    />
+        <result property="status"    column="status"    />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <!--查询所有场馆信息-->
+    <sql id="selectVenueVo">
+        select id, name, capacity, open_time, close_time, info, status, create_time from venue
+    </sql>
+
+    <!--根据条件查询场馆信息-->
+    <select id="selectVenueList" parameterType="Venue" resultMap="VenueResult">
+        <include refid="selectVenueVo"/>
+        <where>  
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="capacity != null "> and capacity &gt;= #{capacity}</if>
+            <if test="info != null  and info != ''"> and info like concat('%', #{info}, '%')</if>
+            <if test="status != null "> and status = #{status}</if>
+        </where>
+    </select>
+
+    <!--根据id查询场馆信息-->
+    <select id="selectVenueById" parameterType="Long" resultMap="VenueResult">
+        <include refid="selectVenueVo"/>
+        where id = #{id}
+    </select>
+
+    <!-- 根据日期查询场馆预约量 -->
+    <select id="getVenueCount" resultType="java.lang.Integer">
+        SELECT count(b.id) as number
+        from venue v
+                 LEFT JOIN book b ON v.id=b.venue_id
+            and DATE(b.book_time) = #{date}
+            AND b.status not in (0,2)
+        where v.name=#{name}
+        group by v.id
+    </select>
+
+    <!--查询最多预约的场馆-->
+    <select id="getMostVenue" resultMap="VenueResult">
+        SELECT venue_id,v.name, v.capacity, v.info,v.open_time,v.status,v.close_time
+        FROM book b
+        LEFT JOIN venue v ON b.venue_id=v.id
+        WHERE venue_id IS NOT NULL
+        GROUP BY venue_id
+        ORDER BY COUNT(*) DESC
+        LIMIT 1;
+    </select>
+
+    <!--获取场馆id和名字-->
+    <select id="getVenueIdName" resultType="com.gymbook.manage.DTO.VenueDTO">
+        SELECT id,name
+        FROM venue
+    </select>
+
+
+    <!--新建场馆-->
+    <insert id="insertVenue" parameterType="Venue" useGeneratedKeys="true" keyProperty="id">
+        insert into venue
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">name,</if>
+            <if test="capacity != null">capacity,</if>
+            <if test="openTime != null">open_time,</if>
+            <if test="closeTime != null">close_time,</if>
+            <if test="info != null">info,</if>
+            <if test="status != null">status,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="capacity != null">#{capacity},</if>
+            <if test="openTime != null">#{openTime},</if>
+            <if test="closeTime != null">#{closeTime},</if>
+            <if test="info != null">#{info},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <!--修改场馆信息-->
+    <update id="updateVenue" parameterType="Venue">
+        update venue
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="capacity != null">capacity = #{capacity},</if>
+            <if test="openTime != null">open_time = #{openTime},</if>
+            <if test="closeTime != null">close_time = #{closeTime},</if>
+            <if test="info != null">info = #{info},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <!--根据id删除场馆-->
+    <delete id="deleteVenueById" parameterType="Long">
+        delete from venue where id = #{id}
+    </delete>
+
+    <!--根据id批量删除场馆-->
+    <delete id="deleteVenueByIds" parameterType="String">
+        delete from venue where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

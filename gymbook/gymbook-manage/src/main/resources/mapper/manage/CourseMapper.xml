@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gymbook.manage.mapper.CourseMapper">
+    
+    <resultMap type="Course" id="CourseResult">
+        <result property="id"    column="id"    />
+        <result property="name"    column="name"    />
+        <result property="coachId"    column="coach_id"    />
+        <result property="coachName"    column="coach_name"    />
+        <result property="nickName"    column="nick_name"    />
+        <result property="status"    column="status"    />
+        <result property="phonenumber"    column="phonenumber"    />
+        <result property="email"    column="email"    />
+        <result property="equipment"    column="equipment"    />
+        <result property="capacity"    column="capacity"    />
+        <result property="venueId"    column="venue_id"    />
+        <result property="startTime"    column="start_time"    />
+        <result property="closeTime"    column="close_time"    />
+        <result property="createTime"    column="create_time"    />
+        <!-- 场馆名称字段映射 -->
+        <result property="venueName"    column="venue_name"    />
+        <association property="venue" javaType="com.gymbook.manage.domain.Venue">
+            <id property="id" column="id"   />
+            <result property="name" column="venue_name"/>
+        </association>
+    </resultMap>
+
+    <!--查询最多预约的课程-->
+    <select id="getMostCourse" resultMap="CourseResult">
+        SELECT b.course_id as id, c.name as name, u.nick_name as coach_name, c.capacity, c.equipment as equipment, c.start_time as start_time, c.close_time as close_time, v.name as venue_name
+        FROM book b
+                 LEFT JOIN course c ON b.course_id=c.id
+                 LEFT JOIN sys_user u ON c.coach_id=u.user_id
+                 LEFT JOIN venue v ON c.venue_id=v.id
+        WHERE b.course_id IS NOT NULL AND b.status=1
+        GROUP BY b.course_id
+        ORDER BY count(*) DESC
+            LIMIT 1;
+    </select>
+
+    <!--查询所有课程信息-->
+    <sql id="selectCourseVo">
+        select id, name, coach_id, status, equipment, capacity, venue_id, start_time, close_time, create_time from course
+    </sql>
+
+    <!--根据条件查询课程信息-->
+    <select id="selectCourseList" parameterType="Course" resultMap="CourseResult">
+        <include refid="selectCourseVo"/>
+        <where>  
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="coachId != null "> and coach_id = #{coachId}</if>
+            <if test="status != null "> and status = #{status}</if>
+            <if test="equipment != null  and equipment != ''"> and equipment = #{equipment}</if>
+            <if test="capacity != null "> and capacity = #{capacity}</if>
+            <if test="venueId != null "> and venue_id = #{venueId}</if>
+            <if test="startTime != null "> and start_time = #{startTime}</if>
+            <if test="closeTime != null "> and close_time = #{closeTime}</if>
+        </where>
+    </select>
+
+    <!-- 根据条件查询课程信息并联接查询场馆名称 -->
+    <select id="selectCourseWithVenueList" parameterType="Course" resultMap="CourseResult">
+        select c.id, c.name, u.nick_name as coach_name, c.status, c.equipment, c.capacity, v.name as venue_name, c.start_time, c.close_time
+        from course c left join venue v ON c.venue_id = v.id
+        left join sys_user u ON c.coach_id=u.user_id
+        <where>
+            <if test="name != null and name != ''">
+                and c.name like concat('%', #{name}, '%')
+            </if>
+            <if test="coachId != null">
+                and c.coach_id = #{coachId}
+            </if>
+            <if test="status != null">
+                and c.status = #{status}
+            </if>
+            <if test="equipment != null and equipment != ''">
+                and c.equipment = #{equipment}
+            </if>
+            <if test="capacity != null">
+                and c.capacity = #{capacity}
+            </if>
+            <if test="venueId != null">
+                and c.venue_id = #{venueId}
+            </if>
+            <if test="startTime != null">
+                and c.start_time = #{startTime}
+            </if>
+            <if test="closeTime != null">
+                and c.close_time = #{closeTime}
+            </if>
+            <if test="venueName != null">
+                and v.name = #{venueName}
+            </if>
+        </where>
+
+    </select>
+
+    <!--根据id查询课程信息-->
+    <select id="selectCourseById2" parameterType="Long" resultMap="CourseResult">
+        <include refid="selectCourseVo"/>
+        where id = #{id}
+    </select>
+
+    <!--根据id查询课程信息-->
+    <select id="selectCourseById" parameterType="Long" resultMap="CourseResult">
+        SELECT c.name, u.nick_name as coach_name, c.status, c.equipment, c.capacity, v.name as venue_name, c.start_time, c.close_time
+        FROM course c
+                 LEFT JOIN venue v ON c.venue_id=v.id
+                 LEFT JOIN sys_user u ON c.coach_id=u.user_id
+        where c.id = #{id}
+    </select>
+
+    <!-- 查询成功报名课程的学员信息 -->
+    <select id="selectStudentList" parameterType="Course" resultMap="CourseResult">
+        SELECT c.id, c.name, u.nick_name as nick_name, u.phonenumber as phonenumber, u.email as email, b.create_time
+        FROM course c
+        LEFT JOIN book b ON c.id = b.course_id
+        LEFT JOIN sys_user u ON b.user_id = u.user_id
+        WHERE c.coach_id = #{coachId} AND b.status=1
+    </select>
+
+    <!-- 统计指定时间区间内的课程预约量排名 -->
+    <select id="getCourseTop10" resultType="com.gymbook.manage.DTO.CourseCountDTO">
+        SELECT c.name, COUNT(b.id) AS number
+        FROM course c
+        LEFT JOIN book b
+        ON c.id = b.course_id
+               AND b.status != 0
+               AND b.status != 2
+               <if test="begin !=null" >
+                   AND b.create_time &gt; #{begin}
+               </if>
+               <if test="end !=null" >
+                   AND b.create_time &lt; #{end}
+               </if>
+        GROUP BY c.name
+        ORDER BY number DESC
+        LIMIT 0, 10;
+    </select>
+
+    <!-- 统计指定时间区间内某个教练的课程预约量 -->
+    <select id="getCoachCourse" resultType="com.gymbook.manage.DTO.CourseCountDTO">
+        SELECT c.name, COUNT(b.id) AS number
+        FROM course c
+        LEFT JOIN book b
+        ON c.id = b.course_id
+        AND b.status != 0
+        AND b.status != 2
+        <if test="begin !=null" >
+            AND b.create_time &gt; #{begin}
+        </if>
+        <if test="end !=null" >
+            AND b.create_time &lt; #{end}
+        </if>
+        WHERE c.coach_id=#{coachId}
+        GROUP BY c.name
+    </select>
+
+    <!-- 统计不同设置状态的课程数量 -->
+    <select id="getCourseStatusCount" resultType="com.gymbook.manage.DTO.CourseStatusCountDTO">
+        SELECT status,COUNT(*) AS number
+        FROM course
+        WHERE create_time BETWEEN #{begin} AND #{end}
+        GROUP BY status
+    </select>
+
+    <!-- 统计教练的不同设置状态的课程数量 -->
+    <select id="getCoachCourseStatusCount" resultType="com.gymbook.manage.DTO.CourseStatusCountDTO">
+        SELECT status,COUNT(*) AS number
+        FROM course
+        WHERE create_time BETWEEN #{begin} AND #{end}
+        and coach_id=#{coachId}
+        GROUP BY status
+    </select>
+
+    <!--获取课程名-->
+    <select id="getCourseName" resultType="com.gymbook.manage.DTO.CourseDTO">
+        SELECT id,name
+        FROM course
+        WHERE status IN (1)
+    </select>
+
+    <!--插入新课程-->
+    <insert id="insertCourse" parameterType="Course" useGeneratedKeys="true" keyProperty="id">
+        insert into course
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">name,</if>
+            <if test="coachId != null">coach_id,</if>
+            <if test="status != null">status,</if>
+            <if test="equipment != null and equipment != ''">equipment,</if>
+            <if test="capacity != null">capacity,</if>
+            <if test="venueId != null">venue_id,</if>
+            <if test="startTime != null">start_time,</if>
+            <if test="closeTime != null">close_time,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="coachId != null">#{coachId},</if>
+            <if test="status != null">#{status},</if>
+            <if test="equipment != null and equipment != ''">#{equipment},</if>
+            <if test="capacity != null">#{capacity},</if>
+            <if test="venueId != null">#{venueId},</if>
+            <if test="startTime != null">#{startTime},</if>
+            <if test="closeTime != null">#{closeTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <!--修改课程信息-->
+    <update id="updateCourse" parameterType="Course">
+        update course
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="coachId != null">coach_id = #{coachId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="equipment != null and equipment != ''">equipment = #{equipment},</if>
+            <if test="capacity != null">capacity = #{capacity},</if>
+            <if test="venueId != null">venue_id = #{venueId},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="closeTime != null">close_time = #{closeTime},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <!--根据id删除课程信息-->
+    <delete id="deleteCourseById" parameterType="Long">
+        delete from course where id = #{id}
+    </delete>
+
+    <!--根据多个id删除多个课程信息-->
+    <delete id="deleteCourseByIds" parameterType="String">
+        delete from course where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>
